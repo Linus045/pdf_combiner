@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Collections.ObjectModel;
 using System.Drawing;
 using System.IO;
 using System.Linq;
@@ -7,13 +8,14 @@ using System.Text;
 using System.Threading.Tasks;
 using System.Windows.Media;
 using System.Windows.Media.Imaging;
+using PDF_Combiner.ViewModels;
 using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using Prism.Mvvm;
 
 namespace PDF_Combiner.Models
 {
-    class Page : BindableBase, IDisposable
+    public class Page : BindableBase, IDisposable
     {
         public string ImagePath
         {
@@ -75,12 +77,37 @@ namespace PDF_Combiner.Models
             }
         }
 
+        private DPIOption _targetDPI;
+        public DPIOption TargetDPI
+        {
+            get => _targetDPI;
+            set => SetProperty(ref _targetDPI, value);
+        }
+
+        public ObservableCollection<DPIOption> DPIOptions { get; }
+
+        public string DPIText
+        {
+            get => dPIText;
+            set => SetProperty(ref dPIText, value);
+        }
+
+        public float GetSelectedDPI()
+        {
+            if (int.TryParse(DPIText, out int dpi))
+            {
+                if (dpi < 0)
+                    dpi = 1;
+            }
+            return dpi;
+        }
 
         private FileStream _fileStream;
         private string _imagePath;
         private string _imageName;
         private Rotation _rotation;
         private bool _isCentered;
+        private string dPIText;
 
         public Page(string imagePath)
         {
@@ -89,8 +116,19 @@ namespace PDF_Combiner.Models
             _isCentered = true;
             _scaleToFit = true;
             _optimizeImage = true;
+            _targetDPI = null;
             ImagePath = imagePath;
             LoadImage();
+
+            DPIOptions = new ObservableCollection<DPIOption>
+            {
+                new DPIOption(300, "Print resolution"),
+                new DPIOption(75, "Normal resolution")
+            };
+
+            int imagedPI = (int)Math.Max((ImageSource as BitmapSource).DpiX, (ImageSource as BitmapSource).DpiY);
+            DPIOptions.Add(new DPIOption(imagedPI, "Original image DPI"));
+            TargetDPI = DPIOptions.Last();
         }
 
         BitmapImage GetBitmapImage(Rotation rotation)

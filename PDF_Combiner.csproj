@@ -76,10 +76,15 @@
       <Generator>MSBuild:Compile</Generator>
       <SubType>Designer</SubType>
     </ApplicationDefinition>
+    <Compile Include="Converters\InvertBoolConverter.cs" />
     <Compile Include="Extensions\EnumerationExtension.cs" />
     <Compile Include="Models\Optimization.cs" />
+    <Compile Include="Models\DPIOption.cs" />
+    <Compile Include="Proxies\IProxy.cs" />
+    <Compile Include="Proxies\MainWindowViewModelProxy.cs" />
+    <Compile Include="ViewModels\ProgressParameter.cs" />
     <Compile Include="ViewModels\ProgressWindowViewModel.cs" />
-    <Compile Include="Windows\ProgressWindow.xaml.cs">
+    <Compile Include="Views\ProgressWindow.xaml.cs">
       <DependentUpon>ProgressWindow.xaml</DependentUpon>
     </Compile>
     <Page Include="Windows\MainWindow.xaml">
@@ -96,7 +101,7 @@
       <DependentUpon>MainWindow.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Page Include="Windows\ProgressWindow.xaml">
+    <Page Include="Views\ProgressWindow.xaml">
       <SubType>Designer</SubType>
       <Generator>MSBuild:Compile</Generator>
     </Page>
@@ -127,15 +132,16 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
-  <ItemGroup>
-    <Folder Include="Views\" />
-  </ItemGroup>
+  <ItemGroup />
   <ItemGroup>
     <PackageReference Include="PdfSharp">
       <Version>1.50.5147</Version>
     </PackageReference>
     <PackageReference Include="Prism.Core">
-      <Version>7.2.0.1422</Version>
+      <Version>8.0.0.1909</Version>
+    </PackageReference>
+    <PackageReference Include="Prism.Unity">
+      <Version>8.0.0.1909</Version>
     </PackageReference>
   </ItemGroup>
   <ItemGroup>

@@ -1,9 +1,8 @@
-﻿<Application x:Class="PDF_Combiner.App"
+﻿<prism:PrismApplication x:Class="PDF_Combiner.App"
+             xmlns:prism="http://prismlibrary.com/"
              xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
              xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
-             xmlns:local="clr-namespace:PDF_Combiner"
-             Startup="Application_Startup"
-             StartupUri="Windows/Mainwindow.xaml">
+             xmlns:local="clr-namespace:PDF_Combiner">
     <Application.Resources>
     </Application.Resources>
-</Application>
+</prism:PrismApplication>

@@ -3,26 +3,33 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
-        xmlns:local="clr-namespace:PDF_Combiner"
         xmlns:extensions="clr-namespace:PDF_Combiner.Extensions"
         xmlns:models="clr-namespace:PDF_Combiner.Models"
+        xmlns:converters="clr-namespace:PDF_Combiner.Converters"
+        xmlns:proxies="clr-namespace:PDF_Combiner.Proxies"
         mc:Ignorable="d"
         WindowStartupLocation="CenterScreen"
-        MinHeight="500"
+        MinHeight="540"
         MinWidth="1000"
-        Height="500"
+        Height="540"
         Width="1000"
         Title="PDF Combiner">
     <Grid>
         <Grid.Resources>
+            <proxies:MainWindowViewModelProxy x:Key="MainWindowViewModelProxy"
+                                              Data="{Binding}" />
+            <DataTemplate x:Key="DPIOptionTemplate">
+                <TextBlock Text="{Binding Caption}" />
+            </DataTemplate>
             <DataTemplate DataType="{x:Type models:Page}">
-                <Grid>
+                <Grid HorizontalAlignment="Stretch">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
                         <RowDefinition Height="Auto" />
-                        <RowDefinition Height="*" />
+                        <RowDefinition Height="Auto" />
                         <RowDefinition Height="30" />
+                        <RowDefinition Height="*" />
                     </Grid.RowDefinitions>
                     <CheckBox Grid.Row="0"
                               Content="Center image on PDF"
@@ -33,13 +40,36 @@
                     <CheckBox Grid.Row="2"
                               Content="Optimize image"
                               IsChecked="{Binding OptimizeImage}" />
-                    <Image Grid.Row="3"
-                           MaxHeight="300"
-                           Source="{Binding ImageSource}" />
+                    <Grid Grid.Row="3"
+                          HorizontalAlignment="Stretch">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
+                        <TextBlock Grid.Column="0"
+                                   Padding="0,0,5,0"
+                                   VerticalAlignment="Center"
+                                   Text="DPI" />
+                        <ComboBox Grid.Column="1"
+                                  IsEditable="True"
+                                  HorizontalAlignment="Stretch"
+                                  Margin="5,0"
+                                  IsTextSearchEnabled="False"
+                                  ItemsSource="{Binding DPIOptions, Mode=OneTime}"
+                                  SelectedValue="{Binding TargetDPI, Mode=TwoWay}"
+                                  ItemTemplate="{StaticResource ResourceKey=DPIOptionTemplate}"
+                                  Text="{Binding DPIText, Mode=OneWayToSource}"
+                                  DisplayMemberPath="DPI" />
+                    </Grid>
                     <TextBlock Grid.Row="4"
                                Text="{Binding ImageName}" />
+                    <Image Grid.Row="5"
+                           Height="{Binding Data.ImageHeight, Source={StaticResource MainWindowViewModelProxy}}"
+                           Source="{Binding ImageSource}" />
                 </Grid>
             </DataTemplate>
+
+            <converters:InvertBoolConverter x:Key="InvertBoolConverter" />
         </Grid.Resources>
         <Grid.RowDefinitions>
             <RowDefinition Height="*" />
@@ -50,12 +80,17 @@
               VerticalAlignment="Stretch">
             <ListView ItemsSource="{Binding Pages}"
                       VerticalAlignment="Stretch"
+                      HorizontalAlignment="Stretch"
+                      IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"
                       ScrollViewer.CanContentScroll="False"
+                      SelectiveScrollingGrid.SelectiveScrollingOrientation="Both"
                       SelectedItem="{Binding SelectedPage}"
                       Margin="10,10,10,10">
                 <ListView.ItemsPanel>
                     <ItemsPanelTemplate>
-                        <StackPanel Orientation="Horizontal" />
+                        <WrapPanel Orientation="Horizontal"
+                                   HorizontalAlignment="Stretch"
+                                   ScrollViewer.CanContentScroll="True" />
                     </ItemsPanelTemplate>
                 </ListView.ItemsPanel>
             </ListView>
@@ -69,6 +104,7 @@
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="140" />
+                <ColumnDefinition Width="100" />
                 <ColumnDefinition Width="*" />
                 <ColumnDefinition Width="Auto" />
                 <ColumnDefinition Width="Auto" />
@@ -92,19 +128,26 @@
                     Command="{Binding DeleteImageCommand}" />
             <ComboBox Grid.Column="4"
                       Margin="5"
+                      IsEnabled="{Binding IsRunning, Converter={StaticResource InvertBoolConverter}}"
                       SelectedValue="{Binding Optimization}"
                       DisplayMemberPath="Description"
                       ItemsSource="{Binding Source={extensions:Enumeration {x:Type models:Optimization}}}"
-                      SelectedValuePath="Value"/>
-            <Button Grid.Column="6"
+                      SelectedValuePath="Value" />
+            <Slider Grid.Column="5"
+                    Margin="5"
+                    VerticalAlignment="Center"
+                    Minimum="300"
+                    Maximum="1000"
+                    Value="{Binding ImageHeight}" />
+            <Button Grid.Column="7"
                     Margin="5"
                     Content="Scan Image"
                     Command="{Binding ScanImageCommand}" />
-            <Button Grid.Column="7"
+            <Button Grid.Column="8"
                     Margin="5"
                     Content="Add Image"
                     Command="{Binding AddImageCommand}" />
-            <Button Grid.Column="8"
+            <Button Grid.Column="9"
                     Margin="5"
                     Content="Save to PDF"
                     Command="{Binding SaveToPDFCommand}" />

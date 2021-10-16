@@ -24,7 +24,6 @@ namespace PDF_Combiner
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new MainWindowViewModel();
         }
     }
 }

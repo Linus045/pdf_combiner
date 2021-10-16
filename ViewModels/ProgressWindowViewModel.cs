@@ -1,31 +1,61 @@
 ﻿using Prism.Mvvm;
+using Prism.Services.Dialogs;
+using System;
 
 namespace PDF_Combiner.ViewModels
 {
-    class ProgressWindowViewModel : BindableBase
+    class ProgressWindowViewModel : BindableBase, IDialogAware
     {
+        public const string DIALOG_NAME = "ProgressWindow";
+
+        private Progress<Tuple<string, int>> _progress;
+        private bool IsDone = false;
 
         public ProgressWindowViewModel()
         {
-            _min = 0;
-            _max = 1;
-            _current = 0;
             _description = "";
         }
 
+        public string Title => "Loading";
+
         public void Reset()
         {
-            Current = 0;
             Description = "";
         }
 
-        public void Step(string description)
+        public void CloseDialog()
         {
-            Current += 1;
-            Description = description;
+            RaiseRequestClose(null);
         }
 
-        public bool IsDone => Current >= Max;
+        public bool CanCloseDialog()
+        {
+            return IsDone;
+        }
+
+        public void OnDialogClosed()
+        {
+        }
+
+        public void OnDialogOpened(IDialogParameters parameters)
+        {
+            if (parameters is ProgressParameter progressParameter)
+            {
+                _progress = progressParameter.ProgressPDFCreation as Progress<Tuple<string, int>>;
+                _progress.ProgressChanged += ProgressChanged;
+            }
+        }
+
+        private void ProgressChanged(object sender, Tuple<string, int> currentProgress)
+        {
+            Description = currentProgress.Item1;
+            Current = currentProgress.Item2;
+            if (Current >= 100)
+            {
+                IsDone = true;
+                CloseDialog();
+            }
+        }
 
         private string _description;
         public string Description
@@ -38,27 +68,9 @@ namespace PDF_Combiner.ViewModels
             }
         }
 
-        private int _min;
-        public int Min
-        {
-            get => _min;
-            set
-            {
-                _min = value;
-                RaisePropertyChanged();
-            }
-        }
+        public event Action<IDialogResult> RequestClose;
 
-        private int _max;
-        public int Max
-        {
-            get => _max;
-            set
-            {
-                _max = value;
-                RaisePropertyChanged();
-            }
-        }
+        public virtual void RaiseRequestClose(IDialogResult dialogResult) => RequestClose?.Invoke(dialogResult);
 
         private int _current;
         public int Current
@@ -70,6 +82,5 @@ namespace PDF_Combiner.ViewModels
                 RaisePropertyChanged();
             }
         }
-
     }
 }

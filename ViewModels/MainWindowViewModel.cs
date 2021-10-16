@@ -5,6 +5,7 @@ using PdfSharp.Drawing;
 using PdfSharp.Pdf;
 using Prism.Commands;
 using Prism.Mvvm;
+using Prism.Services.Dialogs;
 using System;
 using System.Collections.ObjectModel;
 using System.Diagnostics;
@@ -18,8 +19,7 @@ using System.Windows.Media.Imaging;
 
 namespace PDF_Combiner.ViewModels
 {
-
-    class MainWindowViewModel : BindableBase
+    public class MainWindowViewModel : BindableBase
     {
         public ICommand SaveToPDFCommand { get; }
         public ICommand AddImageCommand { get; }
@@ -58,35 +58,36 @@ namespace PDF_Combiner.ViewModels
             }
         }
 
-        private bool Running
+        public bool IsRunning
         {
             get => _running;
             set
             {
-                _running = value;
-                RaisePropertyChanged();
+                SetProperty(ref _running, value);
             }
         }
 
-        public MainWindowViewModel()
+        private int imageHeight;
+        public int ImageHeight
         {
-            SaveToPDFCommand = new DelegateCommand(SaveToPDF, () => Pages.Count > 0);
-            AddImageCommand = new DelegateCommand(AddImage);
-            ScanImageCommand = new DelegateCommand(ScanImage);
-            MoveLeftCommand = new DelegateCommand(MoveLeft, CanMoveLeft);
-            MoveRightCommand = new DelegateCommand(MoveRight, CanMoveRight);
-            DeleteImageCommand = new DelegateCommand(DeleteImage, () => PageIsSelected);
-            RotateImageCommand = new DelegateCommand(RotateImage, () => PageIsSelected);
+            get => imageHeight;
+            set => SetProperty(ref imageHeight, value);
+        }
+
+        public MainWindowViewModel(IDialogService dialogService)
+        {
+            _dialogService = dialogService;
+            SaveToPDFCommand = new DelegateCommand(async () => await SaveToPDF(), () => !IsRunning && Pages.Count > 0).ObservesProperty(() => IsRunning);
+            AddImageCommand = new DelegateCommand(AddImage, () => !IsRunning).ObservesProperty(() => IsRunning);
+            ScanImageCommand = new DelegateCommand(ScanImage, () => false);
+            MoveLeftCommand = new DelegateCommand(MoveLeft, CanMoveLeft).ObservesProperty(() => IsRunning);
+            MoveRightCommand = new DelegateCommand(MoveRight, CanMoveRight).ObservesProperty(() => IsRunning);
+            DeleteImageCommand = new DelegateCommand(DeleteImage, () => !IsRunning && PageIsSelected).ObservesProperty(() => IsRunning);
+            RotateImageCommand = new DelegateCommand(RotateImage, () => !IsRunning && PageIsSelected).ObservesProperty(() => IsRunning);
             Pages = new ObservableCollection<Page>();
-            //TODO: Utilize Dialog Service from Prism
-            _progressWindow = new ProgressWindow
-            {
-                Topmost = true
-            };
-            _progressWindowViewModel = new ProgressWindowViewModel();
-            _progressWindow.DataContext = _progressWindowViewModel;
-            Running = false;
+            IsRunning = false;
             Optimization = Optimization.None;
+            ImageHeight = 400;
         }
 
         private void ScanImage()
@@ -103,9 +104,7 @@ namespace PDF_Combiner.ViewModels
             }
         }
 
-        //TODO: Utilize Dialog Service from Prism
-        private readonly ProgressWindowViewModel _progressWindowViewModel;
-        private readonly ProgressWindow _progressWindow;
+        private readonly IDialogService _dialogService;
         private bool _running;
 
         private void RotateImage()
@@ -128,9 +127,10 @@ namespace PDF_Combiner.ViewModels
                 }
         }
 
-
         private bool CanMoveRight()
         {
+            if (IsRunning)
+                return false;
             if (!PageIsSelected)
                 return false;
             int selectedPageIdx = Pages.IndexOf(SelectedPage);
@@ -150,6 +150,8 @@ namespace PDF_Combiner.ViewModels
 
         private bool CanMoveLeft()
         {
+            if (IsRunning)
+                return false;
             if (!PageIsSelected)
                 return false;
             int selectedPageIdx = Pages.IndexOf(SelectedPage);
@@ -187,113 +189,120 @@ namespace PDF_Combiner.ViewModels
             ((DelegateCommand)SaveToPDFCommand).RaiseCanExecuteChanged();
         }
 
-        private void SaveToPDF()
+        private async Task SaveToPDF()
         {
             //TODO: Make Async
             SaveFileDialog saveFileDialog = new SaveFileDialog
             {
                 Filter = "PDF-File|*.pdf"
             };
+
             if ((bool)saveFileDialog.ShowDialog())
             {
                 string fileName = saveFileDialog.FileName;
-                _progressWindowViewModel.Reset();
-                _progressWindowViewModel.Min = 0;
-                _progressWindowViewModel.Max = Pages.Count;
-                Running = true;
-                Task taskPDF = new Task(() => CreatePDF(fileName, Optimization));
-                taskPDF.ContinueWith((oldTask) =>
+                IsRunning = true;
+
+                IProgress<Tuple<string, int>> progressPDFCreation = new Progress<Tuple<string, int>>();
+
+                _dialogService.Show(ProgressWindowViewModel.DIALOG_NAME, new ProgressParameter(progressPDFCreation), (result) =>
                 {
-                    Application.Current.Dispatcher.Invoke(() =>
-                        {
-                            Running = false;
-                            _progressWindow.Hide();
-                            if (oldTask.IsFaulted)
-                                MessageBox.Show($"Error while creating PDF: {oldTask.Exception.Message} \n {oldTask.Exception.StackTrace}");
-                            else
-                            {
-                                MessageBox.Show($@"Datei wurde erfolgreich unter ""{fileName}"" abgespeichert und wird jetzt geöffnet.");
-                                Process.Start(fileName);
-                            }
-                        });
+                    IsRunning = false;
+                    progressPDFCreation.Report(new Tuple<string, int>("", 100));
+                    MessageBox.Show($@"Datei wurde erfolgreich unter ""{fileName}"" abgespeichert und wird jetzt geöffnet.");
+                    Process.Start(fileName);
                 });
-                taskPDF.Start();
-                _progressWindow.ShowDialog();
+
+                await Task.Run(() => CreatePDF(fileName, Optimization, progressPDFCreation));
             }
         }
 
-        private void CreatePDF(string fileName, Optimization optimization)
+        private void CreatePDF(string fileName, Optimization optimization, IProgress<Tuple<string, int>> progressPDFCreation)
         {
             if (File.Exists(fileName))
                 File.Delete(fileName);
-            PdfDocument pdf = new PdfDocument(fileName);
-            switch (optimization)
-            {
-                case Optimization.OptimizeSpeed:
-                    pdf.Options.UseFlateDecoderForJpegImages = PdfUseFlateDecoderForJpegImages.Never;
-                    pdf.Options.FlateEncodeMode = PdfFlateEncodeMode.BestSpeed;
-                    pdf.Options.NoCompression = true;
-                    pdf.Options.CompressContentStreams = false;
-                    break;
-                case Optimization.OptimizeSize:
-                    pdf.Options.FlateEncodeMode = PdfFlateEncodeMode.BestCompression;
-                    pdf.Options.UseFlateDecoderForJpegImages = PdfUseFlateDecoderForJpegImages.Automatic;
-                    pdf.Options.NoCompression = false;
-                    pdf.Options.CompressContentStreams = true;
-                    break;
-                default:
-                case Optimization.None:
-                    pdf.Options.CompressContentStreams = false;
-                    pdf.Options.FlateEncodeMode = PdfFlateEncodeMode.Default;
-                    break;
-            }
 
-            foreach (Page page in Pages)
+            using (PdfDocument pdf = new PdfDocument(fileName))
             {
-                if (!_progressWindowViewModel.IsDone)
-                    _progressWindowViewModel.Step($"Converting {page.ImageName}...");
-                PdfPage pdfPage = pdf.AddPage();
-                XGraphics graphics = XGraphics.FromPdfPage(pdfPage);
-                pdfPage.Size = PdfSharp.PageSize.A4;
-                Bitmap bm = RotateAndScaleImage(page.FileStream, page.Rotation, page.ScaleToFit, page.OptimizeImage);
-                using (MemoryStream memoryStream = new MemoryStream())
+                switch (optimization)
                 {
-                    bm.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
-                    XImage image = XImage.FromStream(memoryStream);
-                    XPoint origin;
-                    if (page.IsCentered)
-                    {
-                        double x = (pdfPage.Width.Point - image.PointWidth) / 2;
-                        double y = (pdfPage.Height.Point - image.PointHeight) / 2;
-                        origin = new XPoint(x, y);
-                    }
-                    else
-                        origin = new XPoint();
-                    graphics.DrawImage(image, origin);
+                    case Optimization.OptimizeSpeed:
+                        pdf.Options.UseFlateDecoderForJpegImages = PdfUseFlateDecoderForJpegImages.Never;
+                        pdf.Options.FlateEncodeMode = PdfFlateEncodeMode.BestSpeed;
+                        pdf.Options.NoCompression = true;
+                        pdf.Options.CompressContentStreams = false;
+                        break;
+                    case Optimization.OptimizeSize:
+                        pdf.Options.FlateEncodeMode = PdfFlateEncodeMode.BestCompression;
+                        pdf.Options.UseFlateDecoderForJpegImages = PdfUseFlateDecoderForJpegImages.Automatic;
+                        pdf.Options.NoCompression = false;
+                        pdf.Options.CompressContentStreams = true;
+                        break;
+                    default:
+                    case Optimization.None:
+                        pdf.Options.CompressContentStreams = false;
+                        pdf.Options.FlateEncodeMode = PdfFlateEncodeMode.Default;
+                        break;
                 }
+
+                progressPDFCreation.Report(new Tuple<string, int>("", 0));
+                for (int i = 0; i < Pages.Count; i++)
+                {
+                    Page page = Pages[i];
+                    progressPDFCreation.Report(new Tuple<string, int>(page.ImageName, 100 / Pages.Count * i));
+                    //if (!_progressWindowViewModel.IsDone)
+                    //    _progressWindowViewModel.Step($"Converting {page.ImageName}...");
+                    PdfPage pdfPage = pdf.AddPage();
+                    XGraphics graphics = XGraphics.FromPdfPage(pdfPage);
+                    pdfPage.Size = PdfSharp.PageSize.A4;
+                    Bitmap bm = RotateAndScaleImage(page.FileStream, page.Rotation, page.ScaleToFit,
+                        page.OptimizeImage, page.GetSelectedDPI());
+                    using (MemoryStream memoryStream = new MemoryStream())
+                    {
+                        bm.Save(memoryStream, System.Drawing.Imaging.ImageFormat.Png);
+                        XImage image = XImage.FromStream(memoryStream);
+                        XPoint origin;
+                        if (page.IsCentered)
+                        {
+                            double x = (pdfPage.Width.Point - image.PointWidth) / 2;
+                            double y = (pdfPage.Height.Point - image.PointHeight) / 2;
+                            origin = new XPoint(x, y);
+                        }
+                        else
+                            origin = new XPoint();
+                        graphics.DrawImage(image, origin);
+                    }
+                }
+                progressPDFCreation.Report(new Tuple<string, int>("", 100));
+                pdf.Close();
             }
-            pdf.Close();
         }
 
-        private Bitmap RotateAndScaleImage(FileStream fileStream, Rotation rotation, bool scaleToFit, bool optimized)
+        private Bitmap RotateAndScaleImage(FileStream fileStream, Rotation rotation, bool scaleToFit, bool optimized, float targetDPI)
         {
             MemoryStream imageStream = new MemoryStream();
             long oldPosition = fileStream.Position;
             fileStream.Position = 0;
             fileStream.CopyTo(imageStream);
-            Bitmap image = new Bitmap(imageStream);
 
+            Bitmap image = new Bitmap(imageStream);
             image.RotateFlip(RotationToRotateFlipType(rotation));
 
             fileStream.Position = oldPosition;
 
             float imageDPIX = image.HorizontalResolution;
             float imageDPIY = image.VerticalResolution;
+
             float imageWidth = image.Width;
             float imageHeight = image.Height;
 
-            float targetWidthAtImageDPI = 8.27f * imageDPIX;
-            float targetHeightAtImageDPI = 11.69f * imageDPIY;
+            if (targetDPI == 0)
+                targetDPI = Math.Max(imageDPIX, imageDPIY);
+
+            imageWidth = imageWidth / imageDPIX * targetDPI;
+            imageHeight = imageHeight / imageDPIY * targetDPI;
+
+            float targetWidthAtImageDPI = 8.27f * targetDPI; // imageDPIX;
+            float targetHeightAtImageDPI = 11.69f * targetDPI; // imageDPIY;
 
             int scaledWidth;
             int scaledHeight;
@@ -309,7 +318,8 @@ namespace PDF_Combiner.ViewModels
                 scaledHeight = (int)imageHeight;
             }
             var bmp = new Bitmap(scaledWidth, scaledHeight);
-            bmp.SetResolution(imageDPIX, imageDPIY);
+            bmp.SetResolution(targetDPI, targetDPI);
+            //bmp.SetResolution(imageDPIX, imageDPIY);
 
             //Console.WriteLine($"{fileStream.Name} Width: {imageWidth} Height: {imageHeight} XDPI: {imageDPIX} YDPI: {imageDPIY}");
             //Console.WriteLine($"{fileStream.Name} TARGETWidth: {targetWidthAtImageDPI} TARGETHeight: {targetHeightAtImageDPI}");
