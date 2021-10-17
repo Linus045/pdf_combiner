@@ -8,5 +8,8 @@ Screenshot:
 
 
 
-![Faces taken from https://thispersondoesnotexist.com/](https://i.imgur.com/2BcbIjM.png)
+![Program](https://i.imgur.com/2BcbIjM.png)
 (Faces taken from https://thispersondoesnotexist.com/)
+
+
+![Result](https://i.imgur.com/hF8sMg3.png)
