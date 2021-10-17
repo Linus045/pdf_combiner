@@ -9,3 +9,4 @@ Screenshot:
 
 
 ![Faces taken from https://thispersondoesnotexist.com/](https://i.imgur.com/2BcbIjM.png)
+(Faces taken from https://thispersondoesnotexist.com/)
