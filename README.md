@@ -8,4 +8,4 @@ Screenshot:
 
 
 
-![Faces taken from https://thispersondoesnotexist.com/](https://imgur.com/a/6jfL48S)
+![Faces taken from https://thispersondoesnotexist.com/](https://i.imgur.com/2BcbIjM.png)
