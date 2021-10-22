@@ -21,7 +21,7 @@
             <DataTemplate x:Key="DPIOptionTemplate">
                 <TextBlock Text="{Binding Caption}" />
             </DataTemplate>
-            <DataTemplate DataType="{x:Type models:Page}">
+            <DataTemplate DataType="{x:Type models:PageModel}">
                 <Grid HorizontalAlignment="Stretch">
                     <Grid.RowDefinitions>
                         <RowDefinition Height="Auto" />

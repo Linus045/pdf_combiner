@@ -15,7 +15,7 @@ using Prism.Mvvm;
 
 namespace PDF_Combiner.Models
 {
-    public class Page : BindableBase, IDisposable
+    public class PageModel : BindableBase, IDisposable
     {
         public string ImagePath
         {
@@ -109,7 +109,7 @@ namespace PDF_Combiner.Models
         private bool _isCentered;
         private string dPIText;
 
-        public Page(string imagePath)
+        public PageModel(string imagePath)
         {
             ImageValid = true;
             _rotation = Rotation.Rotate0;

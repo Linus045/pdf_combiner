@@ -82,6 +82,7 @@
     <Compile Include="Models\DPIOption.cs" />
     <Compile Include="Proxies\IProxy.cs" />
     <Compile Include="Proxies\MainWindowViewModelProxy.cs" />
+    <Compile Include="Service\ImageService.cs" />
     <Compile Include="ViewModels\ProgressParameter.cs" />
     <Compile Include="ViewModels\ProgressWindowViewModel.cs" />
     <Compile Include="Views\ProgressWindow.xaml.cs">
@@ -95,7 +96,7 @@
       <DependentUpon>App.xaml</DependentUpon>
       <SubType>Code</SubType>
     </Compile>
-    <Compile Include="Models\Page.cs" />
+    <Compile Include="Models\PageModel.cs" />
     <Compile Include="ViewModels\MainWindowViewModel.cs" />
     <Compile Include="Windows\MainWindow.xaml.cs">
       <DependentUpon>MainWindow.xaml</DependentUpon>
